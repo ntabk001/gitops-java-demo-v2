@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-demo
+  labels:
+    app: java-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-demo
+  template:
+    metadata:
+      labels:
+        app: java-demo
+    spec:
+      containers:
+        - name: java-demo
+          image: anhbka/java-gitops-demo:v1
+          ports:
+            - name: http
+              containerPort: 8080
+          # Đọc biến môi trường từ ConfigMap (thường) và Secret (do SopsSecretGenerator sinh ra)
+          envFrom:
+            - configMapRef:
+                name: java-demo-config
+            - secretRef:
+                name: java-demo-secret
+          volumeMounts:
+            - name: app-secret-file
+              mountPath: /etc/app-secret
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        # Mount file mã hoá (đã giải mã trong Secret) vào pod
+        - name: app-secret-file
+          secret:
+            secretName: java-demo-secret
+            items:
+              - key: application-secret.properties
+                path: application-secret.properties
